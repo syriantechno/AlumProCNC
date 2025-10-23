@@ -1,98 +1,90 @@
-from PyQt5.QtWidgets import QMainWindow, QAction, QToolBar, QFrame, QWidget, QVBoxLayout
-from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import QMainWindow, QApplication, QAction, QToolBar
+from PyQt5.QtCore import Qt, QSize
+from pathlib import Path
+
 from view.vtk_qt_viewer import VTKQtViewer
 from controller.main_controller import MainController
-from view.object_properties_panel import ObjectPropertiesPanel
-# الثيم الجديد (مجلدان منفصلان كما أرسلنا سابقًا)
-from frontend.theme.theme_model import ThemeModel
-from frontend.theme.theme_styles import fusion_stylesheet
+from frontend.window.profiles_library_window import ProfilesLibraryWindow
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setObjectName("AlumProMainWindow")
-        self.setWindowTitle("AlumProCNC — VTK/Qt (Stable)")
+        self.setWindowTitle("AlumProCNC — PyVista Edition")
         self.resize(1600, 900)
 
-        # 🔹 تحميل الثيم من الإعدادات
-        self._theme_model = ThemeModel()
-        self.setStyleSheet(fusion_stylesheet(self._theme_model.theme))
-
-        # 🔹 تغليف العارض داخل حاوية لتطبيق خلفية أنيقة
-        center = QWidget(self)
-        center.setObjectName("ViewerContainer")
-        center_layout = QVBoxLayout(center)
-        center_layout.setContentsMargins(8, 8, 8, 8)
-        center_layout.setSpacing(0)
-
-        # 🧭 العارض ثلاثي الأبعاد (VTK)
+        # 🟢 Viewer
         self.viewer = VTKQtViewer(self)
-        center_layout.addWidget(self.viewer)
-        self.setCentralWidget(center)
+        self.setCentralWidget(self.viewer)
 
-        # 🔧 الكنترولر والـ Dock كما هما
+        # 🟢 Controller
         self.controller = MainController(self.viewer)
-        self.properties_panel = ObjectPropertiesPanel(self.controller, self)
-        self.addDockWidget(Qt.RightDockWidgetArea, self.properties_panel)
 
-        # ربط اختيار الكائنات
-        self.viewer.on_object_selected = self.properties_panel.set_selected_actor
-
-        # 🎨 إعداد الشريط العلوي
+        # 🟢 Toolbar
         self._setup_toolbar()
-        self._add_theme_toggle_to_toolbar()
-        self._add_top_separator()
 
-    # ------------------------------------------------------------------ #
+        # 🟢 Apply the unified dark theme
+        self._apply_alum_style()
+
+        print("✅ [MainWindow] Ready — Viewer + Controller initialized")
+
+    # -------------------------------------------------
+    # Toolbar setup
+    # -------------------------------------------------
     def _setup_toolbar(self):
-        """شريط الأدوات الأساسي (كما هو)."""
-        tb = self.addToolBar("Main")
-        tb.setMovable(False)
-        tb.setFloatable(False)
+        toolbar = QToolBar("MainToolbar", self)
+        toolbar.setIconSize(QSize(20, 20))
+        toolbar.setMovable(False)
+        self.addToolBar(Qt.TopToolBarArea, toolbar)
 
-        act_box = QAction("Create Box", self)
-        act_box.triggered.connect(self.controller.create_box)
-        tb.addAction(act_box)
+        # 📂 Profiles Library
+        act_profiles = QAction("Profiles Library", self)
+        act_profiles.triggered.connect(self._open_profiles_library)
+        toolbar.addAction(act_profiles)
 
-        act_import = QAction("Import DXF", self)
-        act_import.triggered.connect(self.controller.import_dxf)
-        tb.addAction(act_import)
+        # 🌗 Toggle Theme
+        act_theme = QAction("Toggle Theme", self)
+        act_theme.triggered.connect(self._apply_alum_style)
+        toolbar.addAction(act_theme)
 
-    # ------------------------------------------------------------------ #
-    def _add_theme_toggle_to_toolbar(self):
-        """زر تبديل الثيم 🌙 ↔ ☀️."""
-        toolbars = self.findChildren(QToolBar)
-        if toolbars:
-            tb = toolbars[0]
-        else:
-            tb = QToolBar("Main", self)
-            self.addToolBar(tb)
+    # -------------------------------------------------
+    # Open profiles library
+    # -------------------------------------------------
+    def _open_profiles_library(self):
+        try:
+            self.library = ProfilesLibraryWindow(self)
+            self.library.setModal(False)
+            self.library.show()
+            self.library.raise_()  # 🔹 تأكد إنها فوق كل النوافذ
+            self.library.activateWindow()  # 🔹 ركّز عليها
+            self.library.move(
+                self.geometry().center().x() - self.library.width() // 2,
+                self.geometry().center().y() - self.library.height() // 2
+            )  # 🔹 افتحها بالمنتصف
+            print("📚 [ProfilesLibrary] Window shown and focused ✅")
+        except Exception as e:
+            print(f"❌ [ProfilesLibrary] Failed to open: {e}")
 
-        self.action_toggle_theme = QAction("Theme", self)
-        self.action_toggle_theme.setToolTip("Toggle Light/Dark Theme")
-        self.action_toggle_theme.triggered.connect(self._toggle_theme)
-        tb.addSeparator()
-        tb.addAction(self.action_toggle_theme)
+    # -------------------------------------------------
+    # Apply the alum dark style (Fusion-style)
+    # -------------------------------------------------
+    def _apply_alum_style(self):
+        try:
+            qss_path = Path("frontend/style/alum_style.qss")
+            if qss_path.exists():
+                qss = qss_path.read_text(encoding="utf-8")
+                self.setStyleSheet(qss)
+                print("🎨 [Style] Applied AlumProCNC Dark Theme")
+            else:
+                print("⚠️ [Style] QSS not found, using fallback color")
+                self.setStyleSheet("QWidget { background-color: #181818; color: #E0E0E0; }")
+        except Exception as e:
+            print(f"❌ [Style ERROR] {e}")
 
-    def _add_top_separator(self):
-        """فاصل رفيع أسفل الشريط لإحساس Fusion."""
-        sep = QFrame(self)
-        sep.setObjectName("TopSeparator")
-        sep.setFrameShape(QFrame.HLine)
-        sep.setFixedHeight(1)
 
-        sep_bar = QToolBar(self)
-        sep_bar.setMovable(False)
-        sep_bar.setFloatable(False)
-        sep_bar.setFixedHeight(1)
-        sep_bar.addWidget(sep)
-        self.addToolBarBreak()
-        self.addToolBar(sep_bar)
-
-    # ------------------------------------------------------------------ #
-    def _toggle_theme(self):
-        """تبديل الثيم وتطبيق الستايل فوراً."""
-        new_theme = self._theme_model.toggle()
-        self.setStyleSheet(fusion_stylesheet(new_theme))
-        print(f"🌗 [UI] Theme toggled to: {new_theme}")
+if __name__ == "__main__":
+    import sys
+    app = QApplication(sys.argv)
+    win = MainWindow()
+    win.show()
+    sys.exit(app.exec_())
