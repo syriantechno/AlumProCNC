@@ -1,6 +1,11 @@
-from PyQt5.QtWidgets import QMainWindow, QApplication, QAction, QToolBar
-from PyQt5.QtCore import Qt, QSize
+# main_window.py
 from pathlib import Path
+import ctypes
+
+from PyQt5.QtCore import Qt, QSize, QTimer, QPoint
+from PyQt5.QtWidgets import (
+    QApplication, QMainWindow, QToolBar, QAction
+)
 
 from view.vtk_qt_viewer import VTKQtViewer
 from controller.main_controller import MainController
@@ -10,76 +15,132 @@ from frontend.window.profiles_library_window import ProfilesLibraryWindow
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("AlumProCNC — PyVista Edition")
+        self.setObjectName("AlumProMainWindow")
+        self.setWindowTitle("AlumProCNC — VTK/Qt (Stable)")
         self.resize(1600, 900)
 
-        # 🟢 Viewer
+        # ===== Viewer + Controller =====
         self.viewer = VTKQtViewer(self)
         self.setCentralWidget(self.viewer)
-
-        # 🟢 Controller
         self.controller = MainController(self.viewer)
 
-        # 🟢 Toolbar
+        # ===== Style (Dark) =====
+        self._apply_unified_style()
+
+        # ===== Toolbar =====
         self._setup_toolbar()
 
-        # 🟢 Apply the unified dark theme
-        self._apply_alum_style()
+        # default language (can wire to your LanguageManager later)
+        self.current_lang = "en"
 
         print("✅ [MainWindow] Ready — Viewer + Controller initialized")
 
+        # Keep ref for the library window (single instance)
+        self._profiles_win = None
+
     # -------------------------------------------------
-    # Toolbar setup
+    # Toolbar
     # -------------------------------------------------
     def _setup_toolbar(self):
-        toolbar = QToolBar("MainToolbar", self)
-        toolbar.setIconSize(QSize(20, 20))
-        toolbar.setMovable(False)
-        self.addToolBar(Qt.TopToolBarArea, toolbar)
+        tb = QToolBar("MainToolbar", self)
+        tb.setMovable(False)
+        tb.setIconSize(QSize(18, 18))
+        self.addToolBar(Qt.TopToolBarArea, tb)
 
-        # 📂 Profiles Library
-        act_profiles = QAction("Profiles Library", self)
+        # 📚 Profiles Library (text icon as requested)
+        act_profiles = QAction("📚 Profiles", self)
+        act_profiles.setToolTip("Open Profiles Library")
         act_profiles.triggered.connect(self._open_profiles_library)
-        toolbar.addAction(act_profiles)
+        tb.addAction(act_profiles)
 
-        # 🌗 Toggle Theme
-        act_theme = QAction("Toggle Theme", self)
-        act_theme.triggered.connect(self._apply_alum_style)
-        toolbar.addAction(act_theme)
-
-    # -------------------------------------------------
-    # Open profiles library
-    # -------------------------------------------------
-    def _open_profiles_library(self):
-        try:
-            self.library = ProfilesLibraryWindow(self)
-            self.library.setModal(False)
-            self.library.show()
-            self.library.raise_()  # 🔹 تأكد إنها فوق كل النوافذ
-            self.library.activateWindow()  # 🔹 ركّز عليها
-            self.library.move(
-                self.geometry().center().x() - self.library.width() // 2,
-                self.geometry().center().y() - self.library.height() // 2
-            )  # 🔹 افتحها بالمنتصف
-            print("📚 [ProfilesLibrary] Window shown and focused ✅")
-        except Exception as e:
-            print(f"❌ [ProfilesLibrary] Failed to open: {e}")
+        # (Optional) quick action to reload style (useful during tweaks)
+        act_reload_style = QAction("🎨 Reload Style", self)
+        act_reload_style.setToolTip("Reload alum_style.qss")
+        act_reload_style.triggered.connect(self._apply_unified_style)
+        tb.addAction(act_reload_style)
 
     # -------------------------------------------------
-    # Apply the alum dark style (Fusion-style)
+    # Style Loader
     # -------------------------------------------------
-    def _apply_alum_style(self):
+    def _apply_unified_style(self):
+        """
+        Load dark Fusion-style QSS. If missing, enforce a safe dark fallback.
+        """
         try:
             qss_path = Path("frontend/style/alum_style.qss")
             if qss_path.exists():
-                qss = qss_path.read_text(encoding="utf-8")
-                self.setStyleSheet(qss)
-                print("🎨 [Style] Applied AlumProCNC Dark Theme")
+                self.setStyleSheet(qss_path.read_text(encoding="utf-8"))
+                print("🎨 [Style] Applied AlumProCNC Dark Theme (QSS)")
             else:
-                print("⚠️ [Style] QSS not found, using fallback color")
-                self.setStyleSheet("QWidget { background-color: #181818; color: #E0E0E0; }")
+                self.setStyleSheet("""
+                    QMainWindow, QWidget { background-color: #1E1E1E; color: #E0E0E0; }
+                    QToolBar { background: #1B1B1B; border: none; }
+                    QPushButton { background:#2B2B2B; color:#E0E0E0; border-radius:6px; padding:6px 12px; }
+                    QPushButton:hover { background:#00BCD4; color:#111; }
+                """)
+                print("⚠️ [Style] QSS not found — applied dark fallback.")
         except Exception as e:
             print(f"❌ [Style ERROR] {e}")
+
+    # -------------------------------------------------
+    # Open Profiles Library (independent window)
+    # -------------------------------------------------
+    def _open_profiles_library(self):
+        try:
+            from frontend.window.profiles_library_window import ProfilesLibraryWindow
+
+            # إنشاء نافذة مستقلة 100% غير تابعة للـMainWindow
+            self._profiles_win = ProfilesLibraryWindow()
+            self._profiles_win.setWindowFlags(Qt.Window | Qt.WindowStaysOnTopHint)
+            self._profiles_win.setWindowModality(Qt.ApplicationModal)
+            self._profiles_win.setAttribute(Qt.WA_DeleteOnClose)
+            self._profiles_win.setMinimumSize(900, 600)
+
+            # عرضها وتفعيلها بالقوة
+            self._profiles_win.show()
+            self._profiles_win.raise_()
+            self._profiles_win.activateWindow()
+
+            # تمركز بمنتصف الشاشة
+            screen = QApplication.primaryScreen().availableGeometry()
+            win_geom = self._profiles_win.frameGeometry()
+            win_geom.moveCenter(screen.center())
+            self._profiles_win.move(win_geom.topLeft())
+
+            print("📚 [ProfilesLibrary] Shown in standalone mode ✅")
+
+        except Exception as e:
+            print(f"❌ [ProfilesLibrary] Failed to open: {e}")
+
+    def _center_child_on_self(self):
+        """Center the library window relative to the MainWindow geometry."""
+        if not self._profiles_win:
+            return
+        # If size not computed yet, use sizeHint
+        w = self._profiles_win.width() or self._profiles_win.sizeHint().width()
+        h = self._profiles_win.height() or self._profiles_win.sizeHint().height()
+
+        center = self.geometry().center()
+        x = center.x() - (w // 2)
+        y = center.y() - (h // 2)
+
+        # Ensure on-screen (in case of multi-monitor)
+        if x < 0: x = 50
+        if y < 0: y = 50
+
+        self._profiles_win.move(QPoint(x, y))
+
+    # -------------------------------------------------
+    # Clean exit (optional)
+    # -------------------------------------------------
+    def closeEvent(self, event):
+        try:
+            if hasattr(self.viewer, "renWin") and self.viewer.renWin:
+                self.viewer.renWin.Finalize()
+                print("🧹 [VTK] Finalized render window.")
+        except Exception as e:
+            print(f"⚠️ [VTK] Finalize on exit failed: {e}")
+        event.accept()
 
 
 if __name__ == "__main__":
