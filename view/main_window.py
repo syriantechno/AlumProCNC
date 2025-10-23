@@ -85,29 +85,47 @@ class MainWindow(QMainWindow):
     # -------------------------------------------------
     # Open Profiles Library (independent window)
     # -------------------------------------------------
+    # main_window.py  (مقتطف دالة واحدة)
+    from PyQt5.QtCore import Qt, QTimer, QPoint
+    from PyQt5.QtWidgets import QApplication
+    import ctypes  # اختياري
+
     def _open_profiles_library(self):
         try:
-            from frontend.window.profiles_library_window import ProfilesLibraryWindow
+            # أنشئ/أعد استخدام نافذة واحدة فقط
+            if getattr(self, "_profiles_win", None) is None:
+                from frontend.window.profiles_library_window import ProfilesLibraryWindow
+                self._profiles_win = ProfilesLibraryWindow(parent=None)
 
-            # إنشاء نافذة مستقلة 100% غير تابعة للـMainWindow
-            self._profiles_win = ProfilesLibraryWindow()
-            self._profiles_win.setWindowFlags(Qt.Window | Qt.WindowStaysOnTopHint)
-            self._profiles_win.setWindowModality(Qt.ApplicationModal)
-            self._profiles_win.setAttribute(Qt.WA_DeleteOnClose)
-            self._profiles_win.setMinimumSize(900, 600)
+                # نافذة Tool مستقلة، تبقى فوق
+                self._profiles_win.setWindowFlags(
+                    Qt.Tool | Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint
+                )
+                self._profiles_win.setWindowModality(Qt.NonModal)
+                self._profiles_win.setAttribute(Qt.WA_DeleteOnClose)
+                self._profiles_win.setMinimumSize(900, 600)
 
-            # عرضها وتفعيلها بالقوة
+            # أظهرها بقوة
+            self._profiles_win.showNormal()
             self._profiles_win.show()
             self._profiles_win.raise_()
             self._profiles_win.activateWindow()
+            self._profiles_win.setFocus(Qt.ActiveWindowFocusReason)
 
-            # تمركز بمنتصف الشاشة
+            # (اختياري) إجبار foreground في ويندوز
+            try:
+                hwnd = int(self._profiles_win.winId())
+                ctypes.windll.user32.SetForegroundWindow(hwnd)
+            except Exception:
+                pass
+
+            # تمركز في منتصف الشاشة (وليس نسبة للـMain)
             screen = QApplication.primaryScreen().availableGeometry()
-            win_geom = self._profiles_win.frameGeometry()
-            win_geom.moveCenter(screen.center())
-            self._profiles_win.move(win_geom.topLeft())
+            g = self._profiles_win.frameGeometry()
+            g.moveCenter(screen.center())
+            self._profiles_win.move(g.topLeft())
 
-            print("📚 [ProfilesLibrary] Shown in standalone mode ✅")
+            print("📚 [ProfilesLibrary] Window shown and focused ✅")
 
         except Exception as e:
             print(f"❌ [ProfilesLibrary] Failed to open: {e}")
