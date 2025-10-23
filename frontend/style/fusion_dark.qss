@@ -1,0 +1,43 @@
+/* fusion_dark.qss — Dark, Fusion-like, consistent with viewer */
+QWidget {
+    background-color: #1e1f22;
+    color: #e0e0e0;
+    font-family: "Roboto";
+    font-size: 10pt;
+    border: none;
+}
+
+/* Windows/dialogs rounded */
+QMainWindow, QDialog {
+    background-color: #1e1f22;
+    border-radius: 10px;
+}
+
+/* Toolbar */
+QToolBar {
+    background: #202020;
+    border: none;
+}
+
+/* Buttons (generic) */
+QPushButton {
+    background-color: #2d2f31;
+    color: #e0e0e0;
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-weight: 500;
+}
+QPushButton:hover { background-color: #3a3d3f; }
+QPushButton:pressed { background-color: #00bcd4; color: #000; }
+
+/* Cards */
+QFrame#ProfileCard {
+    background-color: #2a2b2e;
+    border-radius: 10px;
+    border: 1px solid #3a3b3d;
+}
+QLabel#ProfileTitle { color: #00bcd4; font-weight: bold; }
+QLabel#ProfileText { color: #b0b0b0; }
+
+/* Scrolls */
+QScrollArea { background: #1e1f22; border: none; }
