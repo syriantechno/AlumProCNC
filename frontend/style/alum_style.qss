@@ -1,0 +1,54 @@
+/* خلفية موحدة داكنة لكل النوافذ الداخلية */
+QWidget {
+    background-color: #1E1E1E;
+    color: #E0E0E0;
+    font-family: "Roboto", "Segoe UI", Arial, sans-serif;
+}
+
+/* حاوية نافذة المكتبة */
+QDialog#ProfilesLibraryWindow, QWidget#ProfilesLibraryWindow {
+    background-color: #1D1D1D;
+    border-radius: 12px;
+    border: 1px solid #292929;
+}
+
+/* منطقة المحتوى (التي فيها البطاقات) */
+QScrollArea, QScrollArea QWidget {
+    background-color: #1F1F1F;
+    border: none;
+}
+
+/* البطاقات */
+QFrame#ProfileCard {
+    background-color: #232323;
+    border-radius: 10px;
+    border: 1px solid #2A2A2A;
+    padding: 10px;
+}
+QFrame#ProfileCard:hover {
+    background-color: #2A2A2A;
+    border: 1px solid #00BCD4;
+}
+
+/* الأزرار */
+QPushButton {
+    background-color: #2B2B2B;
+    color: #E0E0E0;
+    border-radius: 6px;
+    padding: 6px 14px;
+}
+QPushButton:hover {
+    background-color: #00BCD4;
+    color: white;
+}
+
+/* أزرار الأدوات في الأعلى */
+QToolButton {
+    background-color: transparent;
+    color: #E0E0E0;
+    border: none;
+    padding: 4px 10px;
+}
+QToolButton:hover {
+    color: #00BCD4;
+}
